@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PK BARBER | Agendamentos & Cursos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,500;0,700;0,900;1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="toast-container"></div>
+
+    <div id="public-view">
+        <header id="header">
+            <div class="logo">PK <span>BARBER</span></div>
+            <nav class="desktop-nav">
+                <a href="#servicos">Serviços</a>
+                <a href="#curso">Curso Lowfade</a>
+                <a href="#social">Redes</a>
+            </nav>
+            <button class="btn btn-purple" onclick="UI.openBooking()">Agendar Horário</button>
+        </header>
+
+        <section class="hero">
+            <div id="particles-js" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 0;"></div>
+            
+            <div class="hero-content" style="position: relative; z-index: 1;">
+                <div class="hero-badge">By: @patrick_limaaa_</div>
+                <h1>PK BARBER</h1>
+                <p class="hero-info">
+                    📍 Rua Mário Gomes Cezar 591 (Pinheirinho) - Curitiba/PR🇧🇷<br>
+                    💼 Atendimentos de terça a sábado
+                </p>
+                <div class="hero-buttons">
+                    <button class="btn btn-solid glow-pulse" onclick="UI.openBooking()">Agendar Corte</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('curso').scrollIntoView();">Cursos</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="servicos" class="section bg-dark-alt reveal">
+            <div class="container">
+                <h2 class="section-title">Nossos Serviços</h2>
+                <div class="grid-3" id="services-grid"></div>
+            </div>
+        </section>
+
+        <section id="curso" class="section reveal">
+            <div class="container course-banner">
+                <div class="course-content">
+                    <h2 style="font-size: 2.5rem; color: #fff; font-weight: 900; font-style: italic;">MÉTODO LOWFADE EM 5 MINUTOS</h2>
+                    <p style="color: #ccc; font-size: 1.1rem; margin: 20px 0;">Domine a técnica mais procurada das barbearias e aumente sua velocidade de atendimento sem perder a qualidade.</p>
+                    <a href="https://pkensina.my.canva.site" target="_blank" class="btn btn-purple">Garantir Minha Vaga</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="social" class="section bg-dark-alt reveal">
+            <div class="container" style="text-align: center;">
+                <h2 class="section-title">Nossas Redes Sociais</h2>
+                <p class="text-muted" style="margin-top: -40px; margin-bottom: 50px;">Acompanhe nosso trabalho e tire suas dúvidas.</p>
+                
+                <div class="social-links-grid">
+                    <a href="https://www.instagram.com/pk_barber1.0?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" class="social-card instagram-card">
+                        <div class="social-icon">📸</div>
+                        <h3>Instagram</h3>
+                        <p>Veja as fotos dos últimos cortes e tendências.</p>
+                    </a>
+
+                    <a href="https://www.tiktok.com/@pk_barber1.0?_r=1&_t=ZS-957oYocwhda" target="_blank" class="social-card tiktok-card">
+                        <div class="social-icon">📱</div>
+                        <h3>TikTok</h3>
+                        <p>Vídeos rápidos de transformações e dia a dia.</p>
+                    </a>
+
+                    <a href="https://wa.me/5541984682351" target="_blank" class="social-card whatsapp-card">
+                        <div class="social-icon">💬</div>
+                        <h3>WhatsApp</h3>
+                        <p>Fale diretamente com nossa equipe.</p>
+                    </a>
+                </div>
+
+                <div style="margin-top: 40px;">
+                    <a href="https://www.google.com/maps/place//data=!4m3!3m2!1s0x94dcfd0005875b2b:0xce21ff9815cca4d7!12e1?source=g.page.m.np._&laa=nmx-review-solicitation-promoted-recommendation-card" target="_blank" style="color: var(--text-muted); font-size: 0.9rem; text-decoration: underline;">
+                        Gostou do atendimento? Avalie-nos no Google
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <div class="container footer-content" style="text-align: center;">
+                <h2>PK BARBER</h2>
+                <p>📍 Rua Mário Gomes Cezar 591 (Pinheirinho) - Curitiba/PR</p>
+                <div class="admin-trigger" onclick="Auth.showLogin()">Acesso Restrito (Admin)</div>
+            </div>
+        </footer>
+
+        <a href="https://wa.me/5541984682351" target="_blank" class="whatsapp-float">💬</a>
+    </div>
+
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-btn" onclick="Auth.closeLogin()">×</span>
+            <h2 style="color: var(--purple); font-style: italic; margin-bottom: 20px;">PK ADMIN</h2>
+            <input type="password" id="admin-password" class="form-input" placeholder="Senha de Acesso" onkeyup="if(event.key === 'Enter') Auth.login()">
+            <button class="btn btn-solid" style="width: 100%; mt-10" onclick="Auth.login()">Entrar no Sistema</button>
+        </div>
+    </div>
+
+    <div id="booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="UI.closeBooking()">×</span>
+            <div class="progress-bar" id="wizard-progress">
+                <div class="step-indicator active">1</div>
+                <div class="step-indicator">2</div>
+                <div class="step-indicator">3</div>
+                <div class="step-indicator">4</div>
+            </div>
+
+            <div class="wizard-step active" id="step-1">
+                <h3>O que vamos fazer hoje?</h3>
+                <div class="options-grid" id="modal-services"></div>
+            </div>
+
+            <div class="wizard-step" id="step-2">
+                <h3>Escolha o Profissional</h3>
+                <div class="options-grid" id="modal-barbers"></div>
+                <button class="btn btn-outline mt-20" onclick="Booking.prevStep()">Voltar</button>
+            </div>
+
+            <div class="wizard-step" id="step-3">
+                <h3><span style="margin-right: 10px;">📅</span>Data e Horário</h3>
+                <label for="booking-date" style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted);">Selecione o dia no calendário abaixo:</label>
+                <input type="date" id="booking-date" class="form-input" onchange="Booking.generateTimeSlots()" style="cursor: pointer;">
+                
+                <div class="time-grid" id="modal-times">
+                    <p class="text-muted" style="grid-column: 1/-1;">Selecione a data primeiro.</p>
+                </div>
+                <div class="action-buttons mt-20">
+                    <button class="btn btn-outline" onclick="Booking.prevStep()">Voltar</button>
+                    <button class="btn btn-purple" id="btn-next-time" onclick="Booking.nextStep()" disabled>Continuar</button>
+                </div>
+            </div>
+
+            <div class="wizard-step" id="step-4">
+                <h3>Seus Dados</h3>
+                <input type="text" id="client-name" class="form-input" placeholder="Seu Nome Completo" onkeyup="Booking.validateForm()">
+                <input type="tel" id="client-phone" class="form-input" placeholder="Seu WhatsApp (Ex: 41999999999)" onkeyup="Booking.validateForm()">
+                
+                <h4 style="margin: 15px 0 10px; color: #fff;">Forma de Pagamento</h4>
+                <div class="options-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="option-card" id="pay-pix" onclick="Booking.selectPayment('PIX')">PIX (Rápido)</div>
+                    <div class="option-card" id="pay-local" onclick="Booking.selectPayment('No Local')">No Local</div>
+                </div>
+                <div class="summary-box mt-20"><strong>Resumo:</strong> <span id="summary-text"></span></div>
+                <div class="action-buttons mt-20">
+                    <button class="btn btn-outline" onclick="Booking.prevStep()">Voltar</button>
+                    <button class="btn btn-solid glow-pulse" id="btn-finish" onclick="Booking.processPaymentChoice()" disabled>Confirmar</button>
+                </div>
+            </div>
+
+            <div class="wizard-step" id="step-5">
+                <h3 style="text-align: center; color: var(--purple);">Pagamento via PIX</h3>
+                <p style="text-align: center; color: var(--text-muted); margin-bottom: 20px;">Valor: <strong>R$ <span id="pix-valor-display"></span></strong></p>
+                <div class="pix-container">
+                    <img id="pix-qrcode" src="" alt="QR Code PIX">
+                    <div class="pix-code-box">
+                        <input type="text" id="pix-copia-cola" readonly>
+                        <button class="btn-copy" onclick="PixHelper.copyCode()">Copiar</button>
+                    </div>
+                </div>
+                <div class="action-buttons mt-20">
+                    <button class="btn btn-outline" onclick="Booking.prevStep()">Voltar</button>
+                    <button class="btn btn-purple glow-pulse" onclick="Booking.submitFinal()">Já Paguei! Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-view" style="display: none;">
+        <div class="admin-sidebar">
+            <h2>PK Admin</h2>
+            <ul class="admin-menu">
+                <li class="active" onclick="Admin.switchTab('dashboard')">📊 Dashboard</li>
+                <li onclick="Admin.switchTab('agenda')">📅 Agenda</li>
+                <li onclick="Admin.switchTab('crm')">👥 Clientes (CRM)</li>
+                <li onclick="Admin.switchTab('equipe')">✂️ Equipe & Bloqueios</li>
+                <li onclick="Admin.switchTab('servicos')">⚙️ Serviços</li>
+                <li class="logout" onclick="Auth.logout()">Sair</li>
+            </ul>
+        </div>
+        
+        <div class="admin-main">
+            <div class="admin-header">
+                <h2>Centro de Comando</h2>
+                <div>
+                    <button class="btn btn-solid" style="padding: 10px 20px; font-size: 0.8rem;" onclick="Admin.submitMockBooking()">+ Criar Agendamento Teste</button>
+                    <button class="btn btn-outline" style="padding: 10px 20px; font-size: 0.8rem; margin-left: 10px;" onclick="DB.factoryReset()">Resetar Sistema</button>
+                </div>
+            </div>
+
+            <div id="tab-dashboard" class="admin-tab active">
+                <div class="stats-grid">
+                    <div class="stat-card"><h4>Faturamento (Mês)</h4><div class="stat-value" style="color: #2e7d32;" id="stat-revenue-month">R$ 0,00</div></div>
+                    <div class="stat-card"><h4>Faturamento (Hoje)</h4><div class="stat-value" id="stat-revenue-today">R$ 0,00</div></div>
+                    <div class="stat-card"><h4>Atendimentos (Hoje)</h4><div class="stat-value" id="stat-count-today">0</div></div>
+                    <div class="stat-card"><h4>Taxa de Faltas</h4><div class="stat-value" style="color: #dc3545;" id="stat-noshow-rate">0%</div></div>
+                </div>
+                <h3 style="margin: 40px 0 15px;">Faturamento por Profissional (Mês)</h3>
+                <div class="grid-3" id="barber-performance-grid"></div>
+            </div>
+
+            <div id="tab-agenda" class="admin-tab">
+                <div class="admin-filters">
+                    <input type="date" id="filter-date" class="form-input" onchange="Admin.renderAgenda()">
+                    <select id="filter-status" class="form-input" onchange="Admin.renderAgenda()">
+                        <option value="ALL">Todos os Status</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Confirmado">Confirmado</option>
+                        <option value="Concluido">Concluído</option>
+                        <option value="Faltou">Faltou</option>
+                    </select>
+                </div>
+                <div class="table-container">
+                    <table class="admin-table">
+                        <thead><tr><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead>
+                        <tbody id="agenda-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-crm" class="admin-tab">
+                <div class="table-container">
+                    <h3>Gestão de Clientes</h3>
+                    <table class="admin-table mt-20">
+                        <thead><tr><th>Nome / Contato</th><th>Atendimentos</th><th>Faltas</th><th>Última Visita</th></tr></thead>
+                        <tbody id="crm-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab-equipe" class="admin-tab">
+                <div class="grid-2">
+                    <div class="table-container">
+                        <h3>Equipe</h3>
+                        <div style="display: flex; gap: 10px; margin: 20px 0;">
+                            <input type="text" id="new-barber-name" class="form-input" placeholder="Nome">
+                            <button class="btn btn-purple" onclick="Admin.addBarber()">Add</button>
+                        </div>
+                        <ul class="admin-list" id="team-list"></ul>
+                    </div>
+                    <div class="table-container">
+                        <h3>Bloqueios</h3>
+                        <div style="margin: 20px 0;">
+                            <input type="date" id="block-date" class="form-input">
+                            <select id="block-barber" class="form-input mt-10"></select>
+                            <button class="btn btn-solid mt-20" style="width: 100%;" onclick="Admin.addBlock()">Bloquear Dia</button>
+                        </div>
+                        <ul class="admin-list" id="blocks-list"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-servicos" class="admin-tab">
+                <div class="table-container">
+                    <button class="btn btn-purple mb-20" onclick="Admin.addService()">+ Novo Serviço</button>
+                    <table class="admin-table">
+                        <thead><tr><th>Serviço</th><th>Duração</th><th>Valor</th><th>Ações</th></tr></thead>
+                        <tbody id="services-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

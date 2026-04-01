@@ -3,13 +3,15 @@
    ========================================================= */
 const CONFIG = {
     API_URL: "https://script.google.com/macros/s/AKfycbxVBjo7_Tc-YASE6TDhPWKDv8vx8WlvG3qEAclqRR8B28OGXrfblngYKAcFNSu_j6N5Fw/exec", 
-    PIX_KEY: "seuemail@gmail.com",
-    PIX_NAME: "Patrick Lima",
+    PIX_KEY: "seuemail@gmail.com", // Adicione a chave pix da barbearia street
+    PIX_NAME: "Barbearia Street",
     PIX_CITY: "Curitiba",
     BUSINESS_START: 9, // 09:00
     BUSINESS_END: 19,  // 19:00
-    ADMIN_PASS: "pk2026"
+    ADMIN_PASS: "pk2026" // Pode alterar a senha aqui futuramente
 };
+
+let revenueChartInstance = null; // Variável global para o Gráfico Chart.js
 
 /* =========================================================
    MÓDULO 1: CAMADA DE BANCO DE DADOS HÍBRIDA (Cloud + Local)
@@ -44,7 +46,6 @@ const DB = {
                         if (match) {
                             let h = match[1];
                             let m = match[2];
-                            
                             if (tStr.includes('T') && tStr.includes('Z')) {
                                 let d = new Date(tStr);
                                 h = String(d.getUTCHours() - 3); 
@@ -72,7 +73,11 @@ const DB = {
                 }
                 
                 UI.renderCatalog(); 
-                if(document.getElementById('admin-view').style.display === 'flex') Admin.init();
+                
+                const adminView = document.getElementById('admin-view');
+                if(adminView && adminView.style.display === 'flex') {
+                    Admin.init();
+                }
             } else {
                 console.error("Erro na Planilha: " + result.error);
             }
@@ -128,7 +133,7 @@ const DB = {
     initLocalFallback: function() {
         if (!localStorage.getItem(this.prefix + 'services')) {
             this.set('services', [{ id: 1, name: 'Corte Degradê / Fade', price: 45, duration: 30, desc: 'O clássico urbano.' }]);
-            this.set('barbers', [{ id: 1, name: 'Patrick Lima', active: true }]);
+            this.set('barbers', [{ id: 1, name: 'Barbeiro Street', active: true, commission: 50 }]);
             this.set('clients', []);
             this.set('appointments', []);
             this.set('blocks', []);
@@ -214,14 +219,20 @@ const UI = {
         }
     },
     openBooking: function() {
-        document.getElementById('booking-modal').style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-        Booking.initWizard();
+        const modal = document.getElementById('booking-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            Booking.initWizard();
+        }
     },
     closeBooking: function() {
-        document.getElementById('booking-modal').style.display = 'none';
-        document.body.style.overflow = 'auto';
-        Booking.reset();
+        const modal = document.getElementById('booking-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            Booking.reset();
+        }
     }
 };
 
@@ -236,20 +247,28 @@ const Booking = {
     
     initWizard: function() {
         const srvModal = document.getElementById('modal-services');
-        srvModal.innerHTML = '';
-        DB.get('services').forEach(srv => {
-            srvModal.innerHTML += `<div class="option-card" onclick="Booking.selectService(${srv.id}, this)">
-                <h4>${srv.name}</h4><p class="text-muted">${UI.formatCurrency(srv.price)} • ${srv.duration}m</p></div>`;
-        });
+        if(srvModal) {
+            srvModal.innerHTML = '';
+            DB.get('services').forEach(srv => {
+                srvModal.innerHTML += `
+                <div class="option-card" onclick="Booking.selectService(${srv.id}, this)">
+                    <h4>${srv.name}</h4>
+                    <p class="text-muted">${UI.formatCurrency(srv.price)} • ${srv.duration}m</p>
+                </div>`;
+            });
+        }
 
         const brbModal = document.getElementById('modal-barbers');
-        brbModal.innerHTML = '';
-        DB.get('barbers').filter(b => b.active !== false && b.active !== "FALSE").forEach(brb => {
-            brbModal.innerHTML += `<div class="option-card" onclick="Booking.selectBarber(${brb.id}, this)"><h4>${brb.name}</h4></div>`;
-        });
+        if(brbModal) {
+            brbModal.innerHTML = '';
+            DB.get('barbers').filter(b => b.active !== false && b.active !== "FALSE").forEach(brb => {
+                brbModal.innerHTML += `<div class="option-card" onclick="Booking.selectBarber(${brb.id}, this)"><h4>${brb.name}</h4></div>`;
+            });
+        }
         this.reset();
         
-        if(document.getElementById('booking-date').value) this.generateTimeSlots();
+        const dateInput = document.getElementById('booking-date');
+        if(dateInput && dateInput.value) this.generateTimeSlots();
     },
 
     updateView: function() {
@@ -257,10 +276,12 @@ const Booking = {
             el.classList.toggle('active', index + 1 === this.currentStep);
         });
         const progBar = document.getElementById('wizard-progress');
-        if(this.currentStep === 5 && progBar.children.length === 4) {
-            progBar.innerHTML += `<div class="step-indicator active">5</div>`;
-        } else if (this.currentStep < 5 && progBar.children.length === 5) {
-            progBar.removeChild(progBar.lastChild);
+        if (progBar) {
+            if(this.currentStep === 5 && progBar.children.length === 4) {
+                progBar.innerHTML += `<div class="step-indicator active">5</div>`;
+            } else if (this.currentStep < 5 && progBar.children.length === 5) {
+                progBar.removeChild(progBar.lastChild);
+            }
         }
         document.querySelectorAll('.step-indicator').forEach((el, index) => {
             el.classList.toggle('active', index + 1 <= this.currentStep);
@@ -289,10 +310,14 @@ const Booking = {
     },
 
     generateTimeSlots: function() {
-        this.data.date = document.getElementById('booking-date').value;
-        const grid = document.getElementById('modal-times');
-        grid.innerHTML = '';
+        const dateInput = document.getElementById('booking-date');
+        if (!dateInput) return;
         
+        this.data.date = dateInput.value;
+        const grid = document.getElementById('modal-times');
+        if (!grid) return;
+        
+        grid.innerHTML = '';
         if (!this.data.date || !this.data.barber) return;
 
         const selectedDate = new Date(this.data.date + 'T00:00:00');
@@ -304,7 +329,8 @@ const Booking = {
                     🚫 <strong>Barbearia Fechada:</strong><br>
                     Não atendemos aos domingos e segundas-feiras. Por favor, escolha outro dia!
                 </p>`;
-            document.getElementById('btn-next-time').disabled = true;
+            const nextBtn = document.getElementById('btn-next-time');
+            if(nextBtn) nextBtn.disabled = true;
             return;
         }
 
@@ -377,7 +403,8 @@ const Booking = {
                     document.querySelectorAll('.time-slot').forEach(e => e.classList.remove('selected'));
                     div.classList.add('selected');
                     this.data.time = time;
-                    document.getElementById('btn-next-time').disabled = false;
+                    const nextBtn = document.getElementById('btn-next-time');
+                    if(nextBtn) nextBtn.disabled = false;
                 };
                 
                 grid.appendChild(div);
@@ -391,33 +418,54 @@ const Booking = {
     },
 
     buildSummary: function() {
-        document.getElementById('summary-text').innerHTML = `
-            <br>✂️ ${this.data.service.name} com ${this.data.barber.name}
-            <br>🗓️ ${UI.formatDateBR(this.data.date)} às ${this.data.time}
-            <br>💰 Total: ${UI.formatCurrency(this.data.service.price)}`;
+        const summary = document.getElementById('summary-text');
+        if(summary) {
+            summary.innerHTML = `
+                <br>✂️ ${this.data.service.name} com ${this.data.barber.name}
+                <br>🗓️ ${UI.formatDateBR(this.data.date)} às ${this.data.time}
+                <br>💰 Total: ${UI.formatCurrency(this.data.service.price)}`;
+        }
     },
 
     selectPayment: function(method) {
         this.data.payment = method;
-        document.getElementById('pay-pix').classList.toggle('selected', method === 'PIX');
-        document.getElementById('pay-local').classList.toggle('selected', method === 'No Local');
-        document.getElementById('btn-finish').innerText = method === 'PIX' ? "Gerar PIX e Continuar" : "Confirmar Horário";
+        const payPix = document.getElementById('pay-pix');
+        const payLocal = document.getElementById('pay-local');
+        const btnFinish = document.getElementById('btn-finish');
+
+        if(payPix) payPix.classList.toggle('selected', method === 'PIX');
+        if(payLocal) payLocal.classList.toggle('selected', method === 'No Local');
+        if(btnFinish) btnFinish.innerText = method === 'PIX' ? "Gerar PIX e Continuar" : "Confirmar Horário";
+        
         this.validateForm();
     },
 
     validateForm: function() {
-        this.data.clientName = document.getElementById('client-name').value;
-        this.data.clientPhone = document.getElementById('client-phone').value;
+        const nameInput = document.getElementById('client-name');
+        const phoneInput = document.getElementById('client-phone');
+        
+        this.data.clientName = nameInput ? nameInput.value : '';
+        this.data.clientPhone = phoneInput ? phoneInput.value : '';
+        
         const btn = document.getElementById('btn-finish');
-        btn.disabled = !(this.data.clientName.length > 2 && this.data.clientPhone.length >= 10 && this.data.payment);
+        if(btn) {
+            btn.disabled = !(this.data.clientName.length > 2 && this.data.clientPhone.length >= 10 && this.data.payment);
+        }
     },
 
     processPaymentChoice: function() {
         if(this.data.payment === 'PIX') {
-            document.getElementById('pix-valor-display').innerText = parseFloat(this.data.service.price).toFixed(2).replace('.', ',');
+            const pixVal = document.getElementById('pix-valor-display');
+            if(pixVal) pixVal.innerText = parseFloat(this.data.service.price).toFixed(2).replace('.', ',');
+            
             const pixString = PixHelper.generate(CONFIG.PIX_KEY, CONFIG.PIX_NAME, CONFIG.PIX_CITY, parseFloat(this.data.service.price));
-            document.getElementById('pix-copia-cola').value = pixString;
-            document.getElementById('pix-qrcode').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixString)}`;
+            
+            const copiaCola = document.getElementById('pix-copia-cola');
+            if(copiaCola) copiaCola.value = pixString;
+            
+            const qrCode = document.getElementById('pix-qrcode');
+            if(qrCode) qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(pixString)}`;
+            
             this.nextStep();
         } else {
             this.submitFinal();
@@ -446,28 +494,44 @@ const Booking = {
         
         DB.insert('appointments', appt);
 
-        let msg = `*Novo Agendamento PK BARBER*%0A%0A👤 ${appt.clientName}%0A✂️ ${appt.serviceName}%0A👨‍🎨 ${appt.barberName}%0A📅 ${UI.formatDateBR(appt.date)} às ${appt.time}%0A💳 Pgto: ${appt.payment}%0A%0A⏳ *Aguardando confirmação da barbearia.*`;
-        window.open(`https://wa.me/5541996043963?text=${msg}`, '_blank');
+        let msg = `*Novo Agendamento Barbearia Street*%0A%0A👤 ${appt.clientName}%0A✂️ ${appt.serviceName}%0A👨‍🎨 ${appt.barberName}%0A📅 ${UI.formatDateBR(appt.date)} às ${appt.time}%0A💳 Pgto: ${appt.payment}%0A%0A⏳ *Aguardando confirmação da barbearia.*`;
+        window.open(`https://wa.me/5541995253525?text=${msg}`, '_blank');
         
         UI.toast("Agendamento enviado para aprovação!");
         UI.closeBooking();
         
-        if(document.getElementById('admin-view').style.display === 'flex') Admin.init();
+        const adminView = document.getElementById('admin-view');
+        if(adminView && adminView.style.display === 'flex') {
+            Admin.init();
+        }
     }
 };
 
 /* =========================================================
-   MÓDULO 5: ADMIN & ANALYTICS
+   MÓDULO 5: ADMIN & ANALYTICS ENTERPRISE
    ========================================================= */
 const Auth = {
-    showLogin: () => { document.getElementById('login-modal').style.display = 'flex'; },
-    closeLogin: () => { document.getElementById('login-modal').style.display = 'none'; },
+    showLogin: () => { 
+        const modal = document.getElementById('login-modal');
+        if(modal) modal.style.display = 'flex'; 
+    },
+    closeLogin: () => { 
+        const modal = document.getElementById('login-modal');
+        if(modal) modal.style.display = 'none'; 
+    },
     login: () => {
-        if(document.getElementById('admin-password').value === CONFIG.ADMIN_PASS) {
+        const passInput = document.getElementById('admin-password');
+        if(passInput && passInput.value === CONFIG.ADMIN_PASS) {
             sessionStorage.setItem('pk_admin_auth', 'true');
-            document.getElementById('public-view').style.display = 'none';
-            document.getElementById('login-modal').style.display = 'none';
-            document.getElementById('admin-view').style.display = 'flex';
+            
+            const pView = document.getElementById('public-view');
+            if(pView) pView.style.display = 'none';
+            
+            Auth.closeLogin();
+            
+            const aView = document.getElementById('admin-view');
+            if(aView) aView.style.display = 'flex';
+            
             Admin.init();
         } else {
             UI.toast("Senha incorreta", "error");
@@ -481,7 +545,10 @@ const Auth = {
 
 const Admin = {
     init: function() {
-        document.getElementById('filter-date').value = new Date().toISOString().split("T")[0];
+        const fDate = document.getElementById('filter-date');
+        if (fDate && !fDate.value) {
+            fDate.value = new Date().toISOString().split("T")[0];
+        }
         this.renderDashboard();
         this.renderAgenda();
         this.renderCRM();
@@ -492,60 +559,174 @@ const Admin = {
     switchTab: function(tab) {
         document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.admin-menu li').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${tab}`).classList.add('active');
-        event.currentTarget.classList.add('active');
+        
+        const targetTab = document.getElementById(`tab-${tab}`);
+        if(targetTab) targetTab.classList.add('active');
+        
+        if(event && event.currentTarget) {
+            event.currentTarget.classList.add('active');
+        }
         this.init(); 
     },
 
+    /* ================= 📊 DASHBOARD & CHART.JS ================= */
     renderDashboard: function() {
         const apps = DB.get('appointments');
+        const barbers = DB.get('barbers');
         const today = new Date().toISOString().split("T")[0];
         const currentMonth = today.substring(0, 7);
 
-        let revMonth = 0, revToday = 0, countToday = 0;
-        let noShows = 0, totalFinished = 0;
+        let revMonthBruto = 0, revToday = 0, countToday = 0, noShows = 0, lucroLiquido = 0;
         let barberPerf = {};
-        DB.get('barbers').forEach(b => barberPerf[b.name] = 0);
+        let dailyRev = {}; 
+        
+        for(let i=14; i>=0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            dailyRev[d.toISOString().split("T")[0]] = 0;
+        }
+
+        barbers.forEach(b => {
+            barberPerf[b.id] = { name: b.name, total: 0, cut: 0, pct: b.commission || 50 };
+        });
 
         apps.forEach(a => {
             const price = parseFloat(a.price) || 0;
             if(a.status === 'Concluido') {
-                totalFinished++;
                 if(a.date === today) revToday += price;
-                if(a.date.startsWith(currentMonth)) {
-                    revMonth += price;
-                    if(barberPerf[a.barberName] !== undefined) barberPerf[a.barberName] += price;
+                
+                if(dailyRev[a.date] !== undefined) {
+                    dailyRev[a.date] += price;
+                }
+                
+                if(a.date && a.date.startsWith(currentMonth)) {
+                    revMonthBruto += price;
+                    
+                    let comissaoRate = barberPerf[a.barberId] ? barberPerf[a.barberId].pct : 50;
+                    let barberCut = price * (comissaoRate / 100);
+                    lucroLiquido += (price - barberCut); 
+                    
+                    if(barberPerf[a.barberId]) {
+                        barberPerf[a.barberId].total += price;
+                        barberPerf[a.barberId].cut += barberCut;
+                    }
                 }
             }
             if(a.date === today && a.status !== 'Cancelado') countToday++;
-            if(a.status === 'Faltou') noShows++;
+            if(a.status === 'Faltou' && a.date && a.date.startsWith(currentMonth)) noShows++;
         });
 
-        const noShowRate = apps.length ? ((noShows / apps.length) * 100).toFixed(1) : 0;
+        const currentMonthApps = apps.filter(a => a.date && a.date.startsWith(currentMonth));
+        const concluidosMes = currentMonthApps.filter(a => a.status === 'Concluido').length;
+        const ticketMedio = concluidosMes > 0 ? (revMonthBruto / concluidosMes) : 0;
+        const noShowRate = currentMonthApps.length ? ((noShows / currentMonthApps.length) * 100).toFixed(1) : 0;
 
-        document.getElementById('stat-revenue-month').innerText = UI.formatCurrency(revMonth);
-        document.getElementById('stat-revenue-today').innerText = UI.formatCurrency(revToday);
-        document.getElementById('stat-count-today').innerText = countToday;
-        document.getElementById('stat-noshow-rate').innerText = `${noShowRate}%`;
+        const safeSetText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = text;
+        };
+
+        safeSetText('stat-revenue-month', UI.formatCurrency(revMonthBruto));
+        safeSetText('stat-net-profit', UI.formatCurrency(lucroLiquido));
+        safeSetText('stat-revenue-today', UI.formatCurrency(revToday));
+        safeSetText('stat-count-today', countToday);
+        safeSetText('stat-noshow-rate', `${noShowRate}%`);
+        safeSetText('stat-ticket-medio', `Ticket Médio: ${UI.formatCurrency(ticketMedio)}`);
 
         const bpGrid = document.getElementById('barber-performance-grid');
-        bpGrid.innerHTML = '';
-        Object.entries(barberPerf).forEach(([name, rev]) => {
-            bpGrid.innerHTML += `<div class="stat-card"><h4>${name}</h4><div class="stat-value" style="color: var(--purple);">${UI.formatCurrency(rev)}</div></div>`;
-        });
+        if(bpGrid) {
+            bpGrid.innerHTML = '';
+            Object.values(barberPerf)
+                .sort((a, b) => b.total - a.total)
+                .forEach(b => {
+                    const percentage = revMonthBruto > 0 ? ((b.total / revMonthBruto) * 100).toFixed(1) : 0;
+                    bpGrid.innerHTML += `
+                        <div style="background: var(--bg-main); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+                            <div style="display:flex; justify-content: space-between;">
+                                <strong>${b.name}</strong> 
+                                <span style="color:var(--cyan);">${UI.formatCurrency(b.total)}</span>
+                            </div>
+                            <div class="progress-bar mt-10" style="height: 6px; background: var(--bg-alt); margin-bottom: 5px;">
+                                <div style="height: 100%; width: ${percentage}%; background: var(--cyan); border-radius: 3px;"></div>
+                            </div>
+                            <div style="display:flex; justify-content: space-between; font-size: 0.8rem;" class="text-muted">
+                                <span>Comissão (${b.pct}%): ${UI.formatCurrency(b.cut)}</span> 
+                                <span>${percentage}% do bruto</span>
+                            </div>
+                        </div>`;
+            });
+        }
+
+        const ctx = document.getElementById('revenueChart');
+        if(ctx) {
+            if(revenueChartInstance) {
+                revenueChartInstance.destroy();
+            }
+            const labels = Object.keys(dailyRev).map(d => d.split('-').slice(1).reverse().join('/'));
+            const data = Object.values(dailyRev);
+            
+            revenueChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Faturamento Diário (R$)', 
+                        data: data, 
+                        borderColor: '#00e5ff', 
+                        backgroundColor: 'rgba(0, 229, 255, 0.2)', 
+                        fill: true, 
+                        tension: 0.4 
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } }, 
+                    scales: { 
+                        y: { beginAtZero: true, grid: { color: '#333' } }, 
+                        x: { grid: { display: false } } 
+                    } 
+                }
+            });
+        }
+    },
+
+    /* ================= 📅 AGENDA & CAIXA ================= */
+    toggleAgendaView: function(viewType) {
+        document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+        const btn = document.getElementById(`btn-view-${viewType}`);
+        if(btn) btn.classList.add('active');
+        
+        const vTable = document.getElementById('agenda-view-table');
+        const vVisual = document.getElementById('agenda-view-visual');
+        
+        if (vTable && vVisual) {
+            if (viewType === 'table') {
+                vTable.style.display = 'block';
+                vVisual.style.display = 'none';
+            } else {
+                vTable.style.display = 'none';
+                vVisual.style.display = 'block';
+                this.renderVisualAgenda();
+            }
+        }
     },
 
     renderAgenda: function() {
         const apps = DB.get('appointments');
-        const fDate = document.getElementById('filter-date').value;
-        const fStatus = document.getElementById('filter-status').value;
+        const fDateEl = document.getElementById('filter-date');
+        const fStatusEl = document.getElementById('filter-status');
+        
+        const fDate = fDateEl ? fDateEl.value : null;
+        const fStatus = fStatusEl ? fStatusEl.value : 'ALL';
+        
         const tbody = document.getElementById('agenda-table-body');
+        if(!tbody) return;
         
         let filtered = apps.filter(a => a.date === fDate);
         if(fStatus !== 'ALL') filtered = filtered.filter(a => a.status === fStatus);
         
         filtered.sort((a, b) => String(a.time).localeCompare(String(b.time)));
-
         tbody.innerHTML = filtered.length ? '' : `<tr><td colspan="6" style="text-align:center;">Nenhum agendamento encontrado.</td></tr>`;
         
         filtered.forEach(app => {
@@ -554,18 +735,80 @@ const Admin = {
                 <tr>
                     <td><strong>${app.time}</strong><br><small>${app.duration}m</small></td>
                     <td><strong>${app.clientName}</strong><br><small>${app.clientPhone}</small></td>
-                    <td>${app.serviceName}<br><strong style="color: var(--purple);">${UI.formatCurrency(app.price)}</strong></td>
+                    <td>${app.serviceName}<br><strong style="color: var(--cyan);">${UI.formatCurrency(app.price)}</strong></td>
                     <td>${app.barberName}</td>
                     <td><span class="badge ${badgeCls}">${app.status}</span></td>
                     <td>
                         <div class="action-group">
-                            ${app.status !== 'Concluido' && app.status !== 'Cancelado' ? `<button class="btn-action ok" onclick="Admin.changeStatus('${app.id}', 'Concluido')">✔ Pago</button>` : ''}
+                            ${app.status !== 'Concluido' && app.status !== 'Cancelado' ? `<button class="btn-action ok" onclick="Admin.checkoutAppt('${app.id}')">✔ Checkout</button>` : ''}
                             ${app.status === 'Pendente' ? `<button class="btn-action confirm" onclick="Admin.changeStatus('${app.id}', 'Confirmado')">Conf.</button>` : ''}
-                            ${app.status !== 'Faltou' && app.status !== 'Concluido' ? `<button class="btn-action cancel" onclick="Admin.changeStatus('${app.id}', 'Faltou')">Faltou</button>` : ''}
+                            ${app.status !== 'Faltou' && app.status !== 'Concluido' ? `<button class="btn-action cancel" onclick="Admin.changeStatus('${app.id}', 'Faltou')">❌ Falta</button>` : ''}
                         </div>
                     </td>
                 </tr>`;
         });
+
+        const vVisual = document.getElementById('agenda-view-visual');
+        if(vVisual && vVisual.style.display === 'block') {
+            this.renderVisualAgenda();
+        }
+    },
+
+    renderVisualAgenda: function() {
+        const fDateEl = document.getElementById('filter-date');
+        const fDate = fDateEl ? fDateEl.value : null;
+        
+        const barbers = DB.get('barbers').filter(b => b.active !== false && b.active !== "FALSE");
+        const apps = DB.get('appointments').filter(a => a.date === fDate && a.status !== 'Cancelado' && a.status !== 'Faltou');
+        
+        let html = `<div class="timeline-wrapper"><div class="timeline-time-col"><div class="timeline-barber-header" style="opacity: 0;">Hora</div>`;
+        
+        for(let h = CONFIG.BUSINESS_START; h <= CONFIG.BUSINESS_END; h++) {
+            html += `<div class="timeline-hour">${String(h).padStart(2, '0')}:00</div>`;
+        }
+        html += `</div><div class="timeline-barbers">`;
+
+        barbers.forEach(barber => {
+            html += `<div class="timeline-barber-col">
+                        <div class="timeline-barber-header">${barber.name}</div>
+                        <div class="timeline-grid">`;
+            
+            const barberApps = apps.filter(a => String(a.barberId) === String(barber.id));
+            
+            barberApps.forEach(app => {
+                let [ah, am] = String(app.time).split(':').map(Number);
+                let startMinutes = (ah - CONFIG.BUSINESS_START) * 60 + am;
+                let height = parseInt(app.duration) || 30; 
+                let badgeCls = app.status.toLowerCase();
+                
+                html += `
+                    <div class="appt-block ${badgeCls}" style="top: ${startMinutes}px; height: ${height}px;" title="${app.serviceName} - ${app.status}">
+                        <strong>${app.time}</strong> - ${app.clientName.split(' ')[0]}<br>
+                        <small>${app.serviceName}</small>
+                    </div>`;
+            });
+            
+            html += `</div></div>`;
+        });
+        
+        html += `</div></div>`;
+        
+        const vVisual = document.getElementById('agenda-view-visual');
+        if(vVisual) vVisual.innerHTML = html;
+    },
+
+    checkoutAppt: function(id) {
+        const appt = DB.get('appointments').find(a => String(a.id) === String(id)); 
+        if(!appt) return;
+        
+        if(confirm(`Fechar ticket de ${appt.clientName}?`)) {
+            DB.update('appointments', id, { 
+                status: 'Concluido'
+            });
+            
+            this.init(); 
+            UI.toast("Atendimento concluído e Caixa atualizado!");
+        }
     },
 
     changeStatus: function(id, status) {
@@ -578,23 +821,56 @@ const Admin = {
         UI.toast(`Status atualizado para: ${status}`);
     },
 
+    /* ================= 👥 CRM & WHATSAPP ================= */
     renderCRM: function() {
-        const clients = DB.get('clients');
-        const tbody = document.getElementById('crm-table-body');
-        tbody.innerHTML = '';
-        clients.sort((a,b) => parseInt(b.visits) - parseInt(a.visits)).forEach(c => {
-            tbody.innerHTML += `
-                <tr>
-                    <td><strong>${c.name}</strong><br><small>${c.phone}</small></td>
-                    <td>${c.visits}</td>
-                    <td style="color: ${parseInt(c.noShows) > 1 ? '#dc3545' : 'inherit'}">${c.noShows}</td>
-                    <td>${UI.formatDateBR(c.lastVisit)}</td>
-                </tr>`;
-        });
+        const clients = DB.get('clients'); 
+        const bodyVip = document.getElementById('crm-vip-body'); 
+        const bodyMissing = document.getElementById('crm-missing-body');
+        
+        if(bodyVip) bodyVip.innerHTML = ''; 
+        if(bodyMissing) bodyMissing.innerHTML = '';
+        
+        let now = new Date();
+        
+        if(bodyVip) {
+            clients.sort((a,b) => parseInt(b.visits) - parseInt(a.visits)).slice(0, 15).forEach(c => {
+                bodyVip.innerHTML += `
+                    <tr>
+                        <td><strong>${c.name}</strong><br><small>${c.phone}</small></td>
+                        <td>${c.visits}</td>
+                        <td>${UI.formatDateBR(c.lastVisit)}</td>
+                    </tr>`;
+            });
+        }
+
+        if(bodyMissing) {
+            clients.forEach(c => {
+                if(!c.lastVisit) return;
+                let lastV = new Date(c.lastVisit);
+                let diffDays = Math.ceil(Math.abs(now - lastV) / (1000 * 60 * 60 * 24));
+                
+                if(diffDays >= 30) {
+                    let msg = encodeURIComponent(`Fala ${c.name}, sumiu hein! Bora dar um tapa no visual essa semana? Tenho um horário top pra você na barbearia!`);
+                    bodyMissing.innerHTML += `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td style="color: #dc3545; font-weight: bold;">${diffDays} dias</td>
+                            <td><a href="https://wa.me/55${c.phone}?text=${msg}" target="_blank" class="btn-whatsapp-sm">💬 Chamar no Whats</a></td>
+                        </tr>`;
+                }
+            });
+
+            if(bodyMissing.innerHTML === '') {
+                bodyMissing.innerHTML = '<tr><td colspan="3" style="text-align:center;">Nenhum cliente ausente no momento!</td></tr>';
+            }
+        }
     },
 
+    /* ================= ⚙️ SERVIÇOS ================= */
     renderServices: function() {
         const tbody = document.getElementById('services-table-body');
+        if(!tbody) return;
+        
         tbody.innerHTML = '';
         DB.get('services').forEach(s => {
             tbody.innerHTML += `
@@ -611,6 +887,7 @@ const Admin = {
                 </tr>`;
         });
     },
+
     addService: function() {
         const name = prompt("Nome do Serviço:"); if(!name) return;
         const price = parseFloat(prompt("Preço (ex: 50.00):")); if(isNaN(price)) return;
@@ -619,6 +896,7 @@ const Admin = {
         this.init();
         UI.toast("Serviço adicionado!");
     },
+
     editServicePrice: function(id) {
         const srvs = DB.get('services');
         const index = srvs.findIndex(s => String(s.id) === String(id));
@@ -627,43 +905,167 @@ const Admin = {
             if(!isNaN(novoPreco)) {
                 DB.update('services', id, { price: novoPreco });
                 this.init();
-                UI.toast("Preço atualizado na Planilha e no Site!");
+                UI.toast("Preço atualizado!");
             }
         }
     },
+
     deleteService: function(id) {
         if(confirm("Remover serviço?")) { DB.delete('services', id); this.init(); }
     },
 
+    /* ================= ✂️ EQUIPE & COMISSÕES ================= */
     renderTeam: function() {
         const list = document.getElementById('team-list');
         const bSelect = document.getElementById('block-barber');
-        list.innerHTML = ''; bSelect.innerHTML = '<option value="ALL">Barbearia Toda</option>';
+        
+        if(list) list.innerHTML = ''; 
+        if(bSelect) bSelect.innerHTML = '<option value="ALL">Barbearia Toda</option>';
         
         DB.get('barbers').forEach(b => {
-            list.innerHTML += `<li>${b.name} <button class="btn-delete" onclick="Admin.deleteBarber('${b.id}')">Remover</button></li>`;
-            bSelect.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+            let pct = b.commission || 50;
+            if(list) {
+                list.innerHTML += `
+                    <li>
+                        <span><strong>${b.name}</strong> <small class="text-muted">(${pct}% comissão)</small></span> 
+                        <div style="display:flex; gap: 10px;">
+                            <button class="btn-report" onclick="Admin.showBarberReport('${b.id}')">📊 Fechamento</button>
+                            <button class="btn-delete" onclick="Admin.deleteBarber('${b.id}')">🗑️ Remover</button>
+                        </div>
+                    </li>`;
+            }
+            if(bSelect) {
+                bSelect.innerHTML += `<option value="${b.id}">${b.name}</option>`;
+            }
         });
 
         const blockList = document.getElementById('blocks-list');
-        blockList.innerHTML = '';
-        DB.get('blocks').forEach(blk => {
-            let bName = blk.barberId === 'ALL' ? 'Todos' : DB.get('barbers').find(x => String(x.id) === String(blk.barberId))?.name;
-            blockList.innerHTML += `<li>🔒 ${UI.formatDateBR(blk.date)} - ${bName} <button class="btn-delete" onclick="Admin.removeBlock('${blk.id}')">Remover</button></li>`;
-        });
+        if(blockList) {
+            blockList.innerHTML = '';
+            DB.get('blocks').forEach(blk => {
+                let bName = blk.barberId === 'ALL' ? 'Todos' : DB.get('barbers').find(x => String(x.id) === String(blk.barberId))?.name;
+                blockList.innerHTML += `<li>🔒 ${UI.formatDateBR(blk.date)} - ${bName} <button class="btn-delete" onclick="Admin.removeBlock('${blk.id}')">Remover</button></li>`;
+            });
+        }
     },
-    addBarber: function() {
-        const name = document.getElementById('new-barber-name').value;
-        if(name) { DB.insert('barbers', { name, active: true }); document.getElementById('new-barber-name').value = ''; this.init(); }
-    },
-    deleteBarber: function(id) { if(confirm("Remover profissional?")) { DB.delete('barbers', id); this.init(); } },
-    addBlock: function() {
-        const date = document.getElementById('block-date').value;
-        const barberId = document.getElementById('block-barber').value;
-        if(date) { DB.insert('blocks', { date, barberId: barberId === 'ALL' ? 'ALL' : barberId }); this.init(); UI.toast("Dia Bloqueado!");}
-    },
-    removeBlock: function(id) { DB.delete('blocks', id); this.init(); },
 
+    addBarber: function() {
+        const inputName = document.getElementById('new-barber-name');
+        if(!inputName) return;
+        
+        const name = inputName.value;
+        if(name) { 
+            const pct = parseInt(prompt(`Qual a porcentagem de comissão do(a) ${name}? (Ex: 50, 40)`)) || 50;
+            DB.insert('barbers', { name, active: true, commission: pct }); 
+            inputName.value = ''; 
+            this.init(); 
+        }
+    },
+
+    deleteBarber: function(id) { 
+        if(confirm("Remover profissional?")) { DB.delete('barbers', id); this.init(); } 
+    },
+
+    showBarberReport: function(barberId) {
+        const barber = DB.get('barbers').find(b => String(b.id) === String(barberId)); 
+        if(!barber) return;
+        
+        const currentMonth = new Date().toISOString().substring(0, 7);
+        const apps = DB.get('appointments').filter(a => String(a.barberId) === String(barberId) && a.status === 'Concluido' && a.date.startsWith(currentMonth));
+        
+        let totalRev = 0; 
+        const tbody = document.getElementById('report-clients-body'); 
+        if(tbody) tbody.innerHTML = '';
+        
+        apps.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(a => {
+            totalRev += parseFloat(a.price);
+            if(tbody) {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${UI.formatDateBR(a.date)}</td>
+                        <td><strong>${a.clientName}</strong></td>
+                        <td>${a.serviceName}</td>
+                        <td style="color: var(--cyan); font-weight: bold;">${UI.formatCurrency(a.price)}</td>
+                    </tr>`;
+            }
+        });
+
+        let pct = barber.commission || 50;
+        let cut = totalRev * (pct / 100);
+
+        const safeSetText = (id, text) => {
+            const el = document.getElementById(id);
+            if(el) el.innerText = text;
+        };
+
+        safeSetText('report-barber-name', `Fechamento do Mês: ${barber.name}`);
+        safeSetText('report-commission-rate', `Taxa de Comissão: ${pct}%`);
+        safeSetText('report-total-rev', UI.formatCurrency(totalRev));
+        safeSetText('report-barber-cut', UI.formatCurrency(cut));
+        safeSetText('report-total-cuts', apps.length);
+        
+        if(tbody && apps.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum atendimento concluído este mês.</td></tr>';
+        }
+        
+        const modal = document.getElementById('barber-report-modal');
+        if(modal) modal.style.display = 'flex';
+    },
+
+    addBlock: function() {
+        const dateEl = document.getElementById('block-date');
+        const bEl = document.getElementById('block-barber');
+        if(!dateEl || !bEl) return;
+        
+        const date = dateEl.value;
+        const barberId = bEl.value;
+        
+        if(date) { 
+            DB.insert('blocks', { date, barberId: barberId === 'ALL' ? 'ALL' : barberId }); 
+            this.init(); 
+            UI.toast("Dia Bloqueado!");
+        }
+    },
+
+    removeBlock: function(id) { 
+        DB.delete('blocks', id); 
+        this.init(); 
+    },
+
+    /* ================= 📥 EXPORTAÇÃO CSV ================= */
+    exportCSV: function() {
+        const apps = DB.get('appointments');
+        if(!apps.length) return UI.toast("Nenhum dado para exportar.", "error");
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Data,Hora,Cliente,Telefone,Servico,Profissional,Valor,Pagamento,Status\n";
+        
+        apps.forEach(a => {
+            let row = [ 
+                a.date, 
+                a.time, 
+                `"${a.clientName}"`, 
+                a.clientPhone, 
+                `"${a.serviceName}"`, 
+                `"${a.barberName}"`, 
+                a.price, 
+                a.payment, 
+                a.status 
+            ].join(",");
+            csvContent += row + "\n";
+        });
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `STREET_Financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        UI.toast("Arquivo Excel baixado!");
+    },
+
+    /* ================= 🛠️ MOCK ================= */
     submitMockBooking: function() {
         const barbers = DB.get('barbers');
         const services = DB.get('services');
@@ -672,6 +1074,9 @@ const Admin = {
         const client = CRM.registerOrUpdate("João Teste (Mock)", "41999999999");
         const srv = services[0];
         const brb = barbers[0];
+        
+        const fDateEl = document.getElementById('filter-date');
+        const d = (fDateEl ? fDateEl.value : '') || new Date().toISOString().split("T")[0];
 
         const newAppt = {
             clientId: client.id,
@@ -681,7 +1086,7 @@ const Admin = {
             clientPhone: client.phone,
             serviceName: srv.name,
             barberName: brb.name,
-            date: document.getElementById('filter-date').value || new Date().toISOString().split("T")[0],
+            date: d,
             time: '14:00',
             duration: srv.duration,
             price: srv.price,
@@ -703,7 +1108,7 @@ const PixHelper = {
     generate: function(key, name, city, value) {
         let payload = "000201" + this.formatField("26", this.formatField("00", "br.gov.bcb.pix") + this.formatField("01", key));
         payload += "520400005303986" + this.formatField("54", value.toFixed(2)) + "5802BR" + this.formatField("59", name) + this.formatField("60", city);
-        payload += this.formatField("62", this.formatField("05", "PK" + Date.now().toString().slice(-6))) + "6304";
+        payload += this.formatField("62", this.formatField("05", "STREET" + Date.now().toString().slice(-6))) + "6304";
         
         let crc = 0xFFFF;
         for (let i = 0; i < payload.length; i++) {
@@ -714,33 +1119,37 @@ const PixHelper = {
     },
     copyCode: function() {
         const input = document.getElementById("pix-copia-cola");
-        input.select(); document.execCommand("copy");
+        if(input) {
+            input.select(); 
+            document.execCommand("copy");
+        }
         
         const btn = document.querySelector('.btn-copy');
-        btn.innerText = "Copiado!";
-        btn.style.background = "#25D366";
-        btn.style.color = "#000";
-        setTimeout(() => { 
-            btn.innerText = "Copiar"; 
-            btn.style.background = "var(--text-main)"; 
-            btn.style.color = "var(--black)"; 
-        }, 3000);
+        if(btn) {
+            btn.innerText = "Copiado!";
+            btn.style.background = "#25D366";
+            btn.style.color = "#000";
+            setTimeout(() => { 
+                btn.innerText = "Copiar"; 
+                btn.style.background = "var(--text-main)"; 
+                btn.style.color = "var(--black)"; 
+            }, 3000);
+        }
         
         UI.toast("Código PIX copiado!");
     }
 };
 
 /* =========================================================
-   INICIALIZAÇÃO DO SISTEMA, ANIMAÇÕES E PARTÍCULAS
+   INICIALIZAÇÃO DO SISTEMA E PARTÍCULAS
    ========================================================= */
 
-// Função para ativar as animações de surgimento (Reveal)
 function reveal() {
     var reveals = document.querySelectorAll(".reveal");
     for (var i = 0; i < reveals.length; i++) {
         var windowHeight = window.innerHeight;
         var elementTop = reveals[i].getBoundingClientRect().top;
-        var elementVisible = 100; // Ponto de disparo (em pixels)
+        var elementVisible = 100;
         if (elementTop < windowHeight - elementVisible) {
             reveals[i].classList.add("active");
         }
@@ -749,33 +1158,30 @@ function reveal() {
 window.addEventListener("scroll", reveal);
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Inicia DB
     DB.initLocalFallback();
     UI.renderCatalog();
     DB.syncDown();
-
-    // Inicia sistema de Reveal na hora de carregar a página
     reveal();
 
-    // Checa se é Admin
     if(sessionStorage.getItem('pk_admin_auth') === 'true') {
-        document.getElementById('public-view').style.display = 'none';
-        document.getElementById('admin-view').style.display = 'flex';
+        const pView = document.getElementById('public-view');
+        if(pView) pView.style.display = 'none';
+        
+        const aView = document.getElementById('admin-view');
+        if(aView) aView.style.display = 'flex';
+        
         Admin.init();
     }
 
-    // ==================================================
-    // CONFIGURAÇÃO DO BACKGROUND DE PARTÍCULAS
-    // ==================================================
     if(typeof particlesJS !== 'undefined' && document.getElementById('particles-js')) {
         particlesJS("particles-js", {
           "particles": {
             "number": { "value": 50, "density": { "enable": true, "value_area": 800 } },
-            "color": { "value": "#9b5de5" }, // Cor Roxo Neon
+            "color": { "value": "#00e5ff" },
             "shape": { "type": "circle" },
             "opacity": { "value": 0.5, "random": true, "anim": { "enable": true, "speed": 1, "opacity_min": 0.1, "sync": false } },
             "size": { "value": 3, "random": true, "anim": { "enable": false, "speed": 40, "size_min": 0.1, "sync": false } },
-            "line_linked": { "enable": true, "distance": 150, "color": "#9b5de5", "opacity": 0.4, "width": 1 },
+            "line_linked": { "enable": true, "distance": 150, "color": "#00e5ff", "opacity": 0.4, "width": 1 },
             "move": { "enable": true, "speed": 2, "direction": "none", "random": false, "straight": false, "out_mode": "out", "bounce": false, "attract": { "enable": false, "rotateX": 600, "rotateY": 1200 } }
           },
           "interactivity": {

@@ -6,6 +6,7 @@
     <title>PK BARBER | Agendamentos & Cursos</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,500;0,700;0,900;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div id="toast-container"></div>
@@ -182,10 +183,10 @@
         <div class="admin-sidebar">
             <h2>PK Admin</h2>
             <ul class="admin-menu">
-                <li class="active" onclick="Admin.switchTab('dashboard')">📊 Dashboard</li>
-                <li onclick="Admin.switchTab('agenda')">📅 Agenda</li>
+                <li class="active" onclick="Admin.switchTab('dashboard')">📊 Dashboard Geral</li>
+                <li onclick="Admin.switchTab('agenda')">📅 Agenda & Caixa</li>
                 <li onclick="Admin.switchTab('crm')">👥 Clientes (CRM)</li>
-                <li onclick="Admin.switchTab('equipe')">✂️ Equipe & Bloqueios</li>
+                <li onclick="Admin.switchTab('equipe')">✂️ Equipe & Comissões</li>
                 <li onclick="Admin.switchTab('servicos')">⚙️ Serviços</li>
                 <li class="logout" onclick="Auth.logout()">Sair</li>
             </ul>
@@ -193,69 +194,114 @@
         
         <div class="admin-main">
             <div class="admin-header">
-                <h2>Centro de Comando</h2>
                 <div>
-                    <button class="btn btn-solid" style="padding: 10px 20px; font-size: 0.8rem;" onclick="Admin.submitMockBooking()">+ Criar Agendamento Teste</button>
-                    <button class="btn btn-outline" style="padding: 10px 20px; font-size: 0.8rem; margin-left: 10px;" onclick="DB.factoryReset()">Resetar Sistema</button>
+                    <h2 style="margin-bottom: 5px;">Centro de Comando</h2>
+                    <p class="text-muted" style="font-size: 0.9rem;">Visão estratégica e controle em tempo real.</p>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-purple" style="padding: 10px 15px; font-size: 0.8rem;" onclick="Admin.exportCSV()">📥 Exportar Excel</button>
+                    <button class="btn btn-outline" style="padding: 10px 15px; font-size: 0.8rem;" onclick="DB.factoryReset()">Resetar DB</button>
                 </div>
             </div>
 
             <div id="tab-dashboard" class="admin-tab active">
                 <div class="stats-grid">
-                    <div class="stat-card"><h4>Faturamento (Mês)</h4><div class="stat-value" style="color: #2e7d32;" id="stat-revenue-month">R$ 0,00</div></div>
-                    <div class="stat-card"><h4>Faturamento (Hoje)</h4><div class="stat-value" id="stat-revenue-today">R$ 0,00</div></div>
-                    <div class="stat-card"><h4>Atendimentos (Hoje)</h4><div class="stat-value" id="stat-count-today">0</div></div>
-                    <div class="stat-card"><h4>Taxa de Faltas</h4><div class="stat-value" style="color: #dc3545;" id="stat-noshow-rate">0%</div></div>
+                    <div class="stat-card">
+                        <h4 class="text-muted">Faturamento Bruto (Mês)</h4>
+                        <div class="stat-value" id="stat-revenue-month">R$ 0,00</div>
+                        <div class="stat-trend" id="stat-ticket-medio">Ticket Médio: R$ 0,00</div>
+                    </div>
+                    <div class="stat-card" style="border-left: 4px solid #2e7d32; background: rgba(46, 125, 50, 0.05);">
+                        <h4 class="text-muted">Lucro Barbearia (Mês)</h4>
+                        <div class="stat-value" style="color: #2e7d32;" id="stat-net-profit">R$ 0,00</div>
+                        <div class="stat-trend">Após pagar comissões</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-muted">Faturamento (Hoje)</h4>
+                        <div class="stat-value" id="stat-revenue-today">R$ 0,00</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="text-muted">Faltas (Mês)</h4>
+                        <div class="stat-value" style="color: #dc3545;" id="stat-noshow-rate">0%</div>
+                    </div>
                 </div>
-                <h3 style="margin: 40px 0 15px;">Faturamento por Profissional (Mês)</h3>
-                <div class="grid-3" id="barber-performance-grid"></div>
+
+                <div class="grid-2 mt-20" style="gap: 30px;">
+                    <div class="table-container" style="padding: 20px;">
+                        <h3 style="margin-bottom: 20px;">Curva de Faturamento (Últimos 15 dias)</h3>
+                        <div style="position: relative; height: 250px; width: 100%;">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="table-container" style="padding: 20px;">
+                        <h3 style="margin-bottom: 20px;">Top Profissionais (Bruto Gerado)</h3>
+                        <div id="barber-performance-grid" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                    </div>
+                </div>
             </div>
 
             <div id="tab-agenda" class="admin-tab">
-                <div class="admin-filters">
-                    <input type="date" id="filter-date" class="form-input" onchange="Admin.renderAgenda()">
-                    <select id="filter-status" class="form-input" onchange="Admin.renderAgenda()">
-                        <option value="ALL">Todos os Status</option>
-                        <option value="Pendente">Pendente</option>
-                        <option value="Confirmado">Confirmado</option>
-                        <option value="Concluido">Concluído</option>
-                        <option value="Faltou">Faltou</option>
-                    </select>
+                <div class="admin-filters" style="justify-content: space-between; align-items: center;">
+                    <div style="display: flex; gap: 15px; flex: 1;">
+                        <input type="date" id="filter-date" class="form-input" style="max-width: 200px;" onchange="Admin.renderAgenda()">
+                        <select id="filter-status" class="form-input" style="max-width: 200px;" onchange="Admin.renderAgenda()">
+                            <option value="ALL">Todos os Status</option>
+                            <option value="Pendente">Pendente</option>
+                            <option value="Confirmado">Confirmado</option>
+                            <option value="Concluido">Concluído</option>
+                        </select>
+                    </div>
+                    <div class="view-toggles">
+                        <button class="btn-toggle active" id="btn-view-table" onclick="Admin.toggleAgendaView('table')">📄 Lista</button>
+                        <button class="btn-toggle" id="btn-view-visual" onclick="Admin.toggleAgendaView('visual')">🗓️ Visual</button>
+                    </div>
                 </div>
-                <div class="table-container">
+                
+                <div class="table-container" id="agenda-view-table">
                     <table class="admin-table">
                         <thead><tr><th>Hora</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Status</th><th>Ações</th></tr></thead>
                         <tbody id="agenda-table-body"></tbody>
                     </table>
                 </div>
+
+                <div class="table-container" id="agenda-view-visual" style="display: none; padding: 0;"></div>
             </div>
 
             <div id="tab-crm" class="admin-tab">
-                <div class="table-container">
-                    <h3>Gestão de Clientes</h3>
-                    <table class="admin-table mt-20">
-                        <thead><tr><th>Nome / Contato</th><th>Atendimentos</th><th>Faltas</th><th>Última Visita</th></tr></thead>
-                        <tbody id="crm-table-body"></tbody>
-                    </table>
+                <div class="grid-2">
+                    <div class="table-container">
+                        <h3 style="color: #f39c12;">⚠️ Clientes Sumidos (>30 dias)</h3>
+                        <table class="admin-table mt-20">
+                            <thead><tr><th>Nome</th><th>Dias Ausente</th><th>Ação</th></tr></thead>
+                            <tbody id="crm-missing-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-container">
+                        <h3 style="color: #2e7d32;">⭐ Clientes VIPs (Top Frequência)</h3>
+                        <table class="admin-table mt-20">
+                            <thead><tr><th>Nome / Contato</th><th>Atendimentos</th><th>Última Visita</th></tr></thead>
+                            <tbody id="crm-vip-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <div id="tab-equipe" class="admin-tab">
                 <div class="grid-2">
                     <div class="table-container">
-                        <h3>Equipe</h3>
+                        <h3>Gestão de Barbeiros</h3>
                         <div style="display: flex; gap: 10px; margin: 20px 0;">
-                            <input type="text" id="new-barber-name" class="form-input" placeholder="Nome">
+                            <input type="text" id="new-barber-name" class="form-input" placeholder="Novo Profissional">
                             <button class="btn btn-purple" onclick="Admin.addBarber()">Add</button>
                         </div>
                         <ul class="admin-list" id="team-list"></ul>
                     </div>
                     <div class="table-container">
-                        <h3>Bloqueios</h3>
+                        <h3>Bloqueios de Agenda</h3>
                         <div style="margin: 20px 0;">
                             <input type="date" id="block-date" class="form-input">
                             <select id="block-barber" class="form-input mt-10"></select>
-                            <button class="btn btn-solid mt-20" style="width: 100%;" onclick="Admin.addBlock()">Bloquear Dia</button>
+                            <button class="btn btn-solid mt-20" style="width: 100%;" onclick="Admin.addBlock()">Bloquear Agenda</button>
                         </div>
                         <ul class="admin-list" id="blocks-list"></ul>
                     </div>
@@ -264,12 +310,43 @@
 
             <div id="tab-servicos" class="admin-tab">
                 <div class="table-container">
-                    <button class="btn btn-purple mb-20" onclick="Admin.addService()">+ Novo Serviço</button>
+                    <button class="btn btn-purple mb-20" onclick="Admin.addService()">+ Cadastrar Serviço</button>
                     <table class="admin-table">
                         <thead><tr><th>Serviço</th><th>Duração</th><th>Valor</th><th>Ações</th></tr></thead>
                         <tbody id="services-table-body"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="barber-report-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close-btn" onclick="document.getElementById('barber-report-modal').style.display='none'">×</span>
+            <h2 id="report-barber-name" style="color: var(--purple); font-style: italic;">Nome do Profissional</h2>
+            <p class="text-muted" id="report-commission-rate">Comissão: 0%</p>
+            
+            <div class="stats-grid mt-20" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="stat-card" style="padding: 15px;">
+                    <h5 class="text-muted">Total Produzido (Bruto)</h5>
+                    <div id="report-total-rev" style="font-size: 1.5rem; font-weight: bold;">R$ 0,00</div>
+                </div>
+                <div class="stat-card" style="padding: 15px; border-left: 4px solid var(--purple); background: rgba(155, 93, 229, 0.1);">
+                    <h5 style="color: var(--purple);">Valor a Receber (Vale)</h5>
+                    <div id="report-barber-cut" style="font-size: 1.5rem; font-weight: bold; color: white;">R$ 0,00</div>
+                </div>
+                <div class="stat-card" style="padding: 15px;">
+                    <h5 class="text-muted">Cortes Realizados</h5>
+                    <div id="report-total-cuts" style="font-size: 1.5rem; font-weight: bold;">0</div>
+                </div>
+            </div>
+
+            <h3 class="mt-20">Histórico de Atendimentos</h3>
+            <div class="table-container" style="max-height: 300px; overflow-y: auto; padding: 0; margin-top: 10px;">
+                <table class="admin-table">
+                    <thead><tr><th>Data</th><th>Cliente</th><th>Serviço</th><th>Valor Total</th></tr></thead>
+                    <tbody id="report-clients-body"></tbody>
+                </table>
             </div>
         </div>
     </div>

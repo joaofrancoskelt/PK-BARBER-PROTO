@@ -447,7 +447,7 @@ const Booking = {
         DB.insert('appointments', appt);
 
         let msg = `*Novo Agendamento PK BARBER*%0A%0A👤 ${appt.clientName}%0A✂️ ${appt.serviceName}%0A👨‍🎨 ${appt.barberName}%0A📅 ${UI.formatDateBR(appt.date)} às ${appt.time}%0A💳 Pgto: ${appt.payment}%0A%0A⏳ *Aguardando confirmação da barbearia.*`;
-        window.open(`https://wa.me/5541984682351?text=${msg}`, '_blank');
+        window.open(`https://wa.me/5541996043963?text=${msg}`, '_blank');
         
         UI.toast("Agendamento enviado para aprovação!");
         UI.closeBooking();
